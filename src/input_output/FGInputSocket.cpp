@@ -47,6 +47,8 @@ INCLUDES
 #include "FGFDMExec.h"
 #include "models/FGAircraft.h"
 #include "input_output/FGXMLElement.h"
+#include "initialization/FGInitialCondition.h"
+#include "models/FGPropagate.h"
 
 using namespace std;
 
@@ -256,7 +258,86 @@ void FGInputSocket::Read(bool Holding)
         "   iterate {value}\r\n"
         "   help\r\n"
         "   quit\r\n"
-        "   info\n\r\n");
+        "   info\r\n"
+        "   reset_ic {complete|state}\n\r\n");
+
+      } else if (command == "reset_ic") {               // RESET IC
+
+        string mode = argument.empty() ? "complete" : to_lower(argument);
+
+        if (mode == "complete") {
+          // Full initialization - replicates RunIC() flow but sources yaw and velocities from current properties
+          // This matches default JSBSim startup but overrides IC values with those set via SET commands
+
+          // Debug: Read current property values before updating IC
+          FGPropertyNode* psiNode = PropertyManager->GetNode("ic/psi-true-deg");
+          FGPropertyNode* thetaNode = PropertyManager->GetNode("ic/theta-deg");
+          double psi_prop = psiNode ? psiNode->getDoubleValue() : 0.0;
+          double theta_prop = thetaNode ? thetaNode->getDoubleValue() : 0.0;
+          double psi_before = FDMExec->GetIC()->GetPsiDegIC();
+          double theta_before = FDMExec->GetIC()->GetThetaDegIC();
+
+          // Update IC object with current property values (overriding reset.xml defaults)
+          if (psiNode && psiNode->hasValue()) {
+            FDMExec->GetIC()->SetPsiDegIC(psi_prop);
+          }
+          if (thetaNode && thetaNode->hasValue()) {
+            FDMExec->GetIC()->SetThetaDegIC(theta_prop);
+          }
+
+          // Zero body frame velocities to ensure clean catapult start (overriding any stale values)
+          FDMExec->GetIC()->SetUBodyFpsIC(0.0);
+          FDMExec->GetIC()->SetVBodyFpsIC(0.0);
+          FDMExec->GetIC()->SetWBodyFpsIC(0.0);
+
+          // Debug: Read IC values after update
+          double psi_after_update = FDMExec->GetIC()->GetPsiDegIC();
+          double theta_after_update = FDMExec->GetIC()->GetThetaDegIC();
+
+          // Run standard JSBSim initialization sequence (same as RunIC())
+          FDMExec->SuspendIntegration(); // Set dt=0 for initialization runs
+
+          // Apply updated IC values to propagate state
+          FDMExec->GetPropagate()->SetInitialState(FDMExec->GetIC());
+
+          // Run twice with dt=0 to update all model states and resolve inter-model dependencies
+          FDMExec->Run();
+          FDMExec->Run();
+
+          // Clear derivative history to prevent stale values from affecting new trajectory
+          FDMExec->GetPropagate()->InitializeDerivatives();
+
+          FDMExec->ResumeIntegration(); // Restore dt
+
+          // Debug output
+          cerr << "reset_ic complete: prop psi=" << psi_prop << " theta=" << theta_prop
+               << " | IC before: psi=" << psi_before << " theta=" << theta_before
+               << " | IC after: psi=" << psi_after_update << " theta=" << theta_after_update << endl;
+
+          socket->Reply("Initial conditions reset (complete)\r\n");
+        } else if (mode == "state") {
+          // State-only update - applies orientation and velocity
+          // Must convert Local-to-Body quaternion to ECI-to-Body using Ti2l
+
+          FGPropagate* propagate = FDMExec->GetPropagate();
+
+          // Get Local-to-Body quaternion from IC
+          FGQuaternion qLocal = FDMExec->GetIC()->GetOrientation();
+
+          // Get ECI-to-Local transformation matrix
+          const FGMatrix33& Ti2l = propagate->GetTi2l();
+
+          // Convert to ECI-to-Body: qECI = Ti2l * qLocal
+          FGQuaternion qECI = Ti2l.GetQuaternion() * qLocal;
+
+          // Apply orientation and velocity
+          propagate->SetInertialOrientation(qECI);
+          propagate->SetInertialVelocity(FDMExec->GetIC()->GetUVWFpsIC());
+
+          socket->Reply("Initial conditions applied (state)\r\n");
+        } else {
+          socket->Reply("Invalid reset_ic mode. Use 'complete' or 'state'\r\n");
+        }
 
       } else {
         socket->Reply(string("Unknown command: ") + command + "\r\n");
