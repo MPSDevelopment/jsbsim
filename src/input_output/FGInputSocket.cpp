@@ -266,23 +266,64 @@ void FGInputSocket::Read(bool Holding)
         string mode = argument.empty() ? "complete" : to_lower(argument);
 
         if (mode == "complete") {
-          // Full initialization - replicates RunIC() flow but sources yaw and velocities from current properties
+          // Full initialization - replicates RunIC() flow but sources position, orientation and velocities from current properties
           // This matches default JSBSim startup but overrides IC values with those set via SET commands
 
           // Debug: Read current property values before updating IC
+          // Position properties
+          FGPropertyNode* latNode = PropertyManager->GetNode("ic/lat-gc-deg");
+          FGPropertyNode* lonNode = PropertyManager->GetNode("ic/long-gc-deg");
+          FGPropertyNode* hAglNode = PropertyManager->GetNode("ic/h-agl-ft");
+          FGPropertyNode* hSlNode = PropertyManager->GetNode("ic/h-sl-ft");
+          FGPropertyNode* terrainNode = PropertyManager->GetNode("ic/terrain-elevation-ft");
+
+          // Orientation properties
           FGPropertyNode* psiNode = PropertyManager->GetNode("ic/psi-true-deg");
           FGPropertyNode* thetaNode = PropertyManager->GetNode("ic/theta-deg");
+          FGPropertyNode* phiNode = PropertyManager->GetNode("ic/phi-deg");
+
+          // Read property values
+          double lat_prop = latNode ? latNode->getDoubleValue() : 0.0;
+          double lon_prop = lonNode ? lonNode->getDoubleValue() : 0.0;
+          double h_agl_prop = hAglNode ? hAglNode->getDoubleValue() : 0.0;
+          double h_sl_prop = hSlNode ? hSlNode->getDoubleValue() : 0.0;
+          double terrain_prop = terrainNode ? terrainNode->getDoubleValue() : 0.0;
           double psi_prop = psiNode ? psiNode->getDoubleValue() : 0.0;
           double theta_prop = thetaNode ? thetaNode->getDoubleValue() : 0.0;
+          double phi_prop = phiNode ? phiNode->getDoubleValue() : 0.0;
+
+          // Read IC values before update for debug
+          double lat_before = FDMExec->GetIC()->GetLatitudeDegIC();
+          double lon_before = FDMExec->GetIC()->GetLongitudeDegIC();
           double psi_before = FDMExec->GetIC()->GetPsiDegIC();
           double theta_before = FDMExec->GetIC()->GetThetaDegIC();
 
-          // Update IC object with current property values (overriding reset.xml defaults)
+          // Update IC object with position properties (overriding reset.xml defaults)
+          if (latNode && latNode->hasValue()) {
+            FDMExec->GetIC()->SetLatitudeDegIC(lat_prop);
+          }
+          if (lonNode && lonNode->hasValue()) {
+            FDMExec->GetIC()->SetLongitudeDegIC(lon_prop);
+          }
+          if (hAglNode && hAglNode->hasValue()) {
+            FDMExec->GetIC()->SetAltitudeAGLFtIC(h_agl_prop);
+          }
+          if (hSlNode && hSlNode->hasValue()) {
+            FDMExec->GetIC()->SetAltitudeASLFtIC(h_sl_prop);
+          }
+          if (terrainNode && terrainNode->hasValue()) {
+            FDMExec->GetIC()->SetTerrainElevationFtIC(terrain_prop);
+          }
+
+          // Update IC object with orientation properties (overriding reset.xml defaults)
           if (psiNode && psiNode->hasValue()) {
             FDMExec->GetIC()->SetPsiDegIC(psi_prop);
           }
           if (thetaNode && thetaNode->hasValue()) {
             FDMExec->GetIC()->SetThetaDegIC(theta_prop);
+          }
+          if (phiNode && phiNode->hasValue()) {
+            FDMExec->GetIC()->SetPhiDegIC(phi_prop);
           }
 
           // Zero body frame velocities to ensure clean catapult start (overriding any stale values)
@@ -291,6 +332,8 @@ void FGInputSocket::Read(bool Holding)
           FDMExec->GetIC()->SetWBodyFpsIC(0.0);
 
           // Debug: Read IC values after update
+          double lat_after = FDMExec->GetIC()->GetLatitudeDegIC();
+          double lon_after = FDMExec->GetIC()->GetLongitudeDegIC();
           double psi_after_update = FDMExec->GetIC()->GetPsiDegIC();
           double theta_after_update = FDMExec->GetIC()->GetThetaDegIC();
 
@@ -309,10 +352,13 @@ void FGInputSocket::Read(bool Holding)
 
           FDMExec->ResumeIntegration(); // Restore dt
 
-          // Debug output
-          cerr << "reset_ic complete: prop psi=" << psi_prop << " theta=" << theta_prop
-               << " | IC before: psi=" << psi_before << " theta=" << theta_before
-               << " | IC after: psi=" << psi_after_update << " theta=" << theta_after_update << endl;
+          // Debug output - now includes position
+          cerr << "reset_ic complete: prop lat=" << lat_prop << " lon=" << lon_prop
+               << " psi=" << psi_prop << " theta=" << theta_prop
+               << " | IC before: lat=" << lat_before << " lon=" << lon_before
+               << " psi=" << psi_before << " theta=" << theta_before
+               << " | IC after: lat=" << lat_after << " lon=" << lon_after
+               << " psi=" << psi_after_update << " theta=" << theta_after_update << endl;
 
           socket->Reply("Initial conditions reset (complete)\r\n");
         } else if (mode == "state") {
