@@ -44,10 +44,10 @@ STATIC DATA
 
 // AES-256 key (32 bytes) - CHANGE THIS KEY FOR YOUR DISTRIBUTION
 static const unsigned char AES_KEY[32] = {
-  0x4a, 0x53, 0x42, 0x53, 0x69, 0x6d, 0x41, 0x45,  // "JSBSimAE"
-  0x53, 0x32, 0x35, 0x36, 0x4b, 0x65, 0x79, 0x21,  // "S256Key!"
-  0x46, 0x6c, 0x69, 0x67, 0x68, 0x74, 0x44, 0x79,  // "FlightDy"
-  0x6e, 0x61, 0x6d, 0x69, 0x63, 0x73, 0x21, 0x21   // "namics!!"
+  0xc7, 0xa1, 0x38, 0x80, 0x09, 0xf7, 0x5e, 0xb7,
+  0x83, 0xe6, 0x5c, 0x4b, 0x4c, 0x77, 0x15, 0x85,
+  0xc2, 0x22, 0xc0, 0x19, 0xa3, 0xfc, 0x0f, 0x30,
+  0xe8, 0x82, 0x45, 0x68, 0xb9, 0x47, 0x31, 0xed
 };
 
 /*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -128,11 +128,15 @@ std::vector<unsigned char> FGDecrypt::ReadEncryptedFile(const SGPath& path)
 
 SGPath FGDecrypt::GetEncryptedPath(const SGPath& path)
 {
-  SGPath encPath(path);
-  encPath.concat(".enc");
-
-  if (encPath.exists()) {
-    return encPath;
+  // Replace .xml extension with .bin
+  std::string pathStr = path.utf8Str();
+  size_t dotPos = pathStr.rfind(".xml");
+  if (dotPos != std::string::npos) {
+    std::string binPath = pathStr.substr(0, dotPos) + ".bin";
+    SGPath encPath(binPath);
+    if (encPath.exists()) {
+      return encPath;
+    }
   }
 
   return SGPath();
