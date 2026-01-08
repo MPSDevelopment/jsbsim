@@ -56,7 +56,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_PYTHON_MODULE=OFF \
             -DBUILD_DOCS=OFF \
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
@@ -66,7 +67,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_PYTHON_MODULE=OFF \
             -DBUILD_DOCS=OFF \
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
       - name: Build (Unix)
         if: runner.os != 'Windows'
