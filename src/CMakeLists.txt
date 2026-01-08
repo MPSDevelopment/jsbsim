@@ -1,6 +1,13 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 ################################################################################
+# Find OpenSSL for AES decryption                                              #
+################################################################################
+
+find_package(OpenSSL REQUIRED)
+include_directories(${OPENSSL_INCLUDE_DIR})
+
+################################################################################
 # Define some commons compile flags.                                           #
 ################################################################################
 
@@ -77,6 +84,9 @@ else()
   list(APPEND COMPILE_DEFINITIONS HAVE_EXPAT_CONFIG_H XML_DEV_URANDOM)
   list(APPEND MSVC_COMPILE_DEFINITIONS XML_STATIC)
 endif(EXPAT_FOUND)
+
+# Link OpenSSL for AES decryption
+target_link_libraries(libJSBSim OpenSSL::Crypto)
 
 # Manage compile definitions
 set(JSBSIM_COMPILE_DEFINITIONS ${COMPILE_DEFINITIONS} PARENT_SCOPE)

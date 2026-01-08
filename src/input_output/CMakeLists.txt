@@ -5,6 +5,7 @@ set(SOURCES FGGroundCallback.cpp
             FGXMLParse.cpp
             FGfdmSocket.cpp
             FGXMLFileRead.cpp
+            FGDecrypt.cpp
             FGOutputType.cpp
             FGOutputFG.cpp
             FGOutputSocket.cpp
@@ -23,6 +24,7 @@ set(HEADERS FGGroundCallback.h
             FGXMLParse.h
             FGfdmSocket.h
             FGXMLFileRead.h
+            FGDecrypt.h
             net_fdm.hxx
             string_utilities.h
             FGOutputType.h
