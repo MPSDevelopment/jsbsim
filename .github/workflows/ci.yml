@@ -1,0 +1,145 @@
+name: Build JSBSim
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact: JSBSim-linux
+            cmake_generator: "Ninja"
+          - os: macos-14
+            artifact: JSBSim-macos-arm64
+            cmake_generator: "Unix Makefiles"
+          - os: windows-latest
+            artifact: JSBSim-windows.exe
+            cmake_generator: "Ninja"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja
+
+      - name: Install MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+
+      - name: Configure CMake (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -B build -G "${{ matrix.cmake_generator }}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_PYTHON_MODULE=OFF \
+            -DBUILD_DOCS=OFF \
+            -DBUILD_SHARED_LIBS=OFF
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake -B build -G "${{ matrix.cmake_generator }}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_PYTHON_MODULE=OFF \
+            -DBUILD_DOCS=OFF \
+            -DBUILD_SHARED_LIBS=OFF
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cmake --build build --config Release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake --build build --config Release -j$(nproc)
+
+      - name: Copy binary (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cp build/src/JSBSim "${{ github.workspace }}/${{ matrix.artifact }}"
+          chmod +x "${{ github.workspace }}/${{ matrix.artifact }}"
+
+      - name: Copy binary (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cp build/src/JSBSim.exe "${{ github.workspace }}/${{ matrix.artifact }}"
+
+      - name: Test binary (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          "${{ github.workspace }}/${{ matrix.artifact }}" --help || true
+
+      - name: Test binary (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          "${{ github.workspace }}/${{ matrix.artifact }}" --help || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ github.workspace }}/${{ matrix.artifact }}
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.0-${{ github.run_number }}
+          name: JSBSim Build ${{ github.run_number }}
+          body: |
+            JSBSim flight dynamics model binaries.
+
+            **Build**: ${{ github.run_number }}
+            **Commit**: ${{ github.sha }}
+
+            **Platforms**:
+            - Linux (x64)
+            - macOS ARM64 (Apple Silicon)
+            - Windows (x64)
+          files: |
+            ./artifacts/JSBSim-linux/JSBSim-linux
+            ./artifacts/JSBSim-macos-arm64/JSBSim-macos-arm64
+            ./artifacts/JSBSim-windows.exe/JSBSim-windows.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
