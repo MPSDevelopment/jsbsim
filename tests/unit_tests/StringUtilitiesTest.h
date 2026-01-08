@@ -1,8 +1,9 @@
 #include <string>
 #include <cxxtest/TestSuite.h>
-#define BASE
+#include "FGJSBBase.h"
 #include <input_output/string_utilities.h>
-#undef BASE
+
+using namespace JSBSim;
 
 class StringUtilitiesTest : public CxxTest::TestSuite
 {
@@ -85,6 +86,17 @@ public:
                              std::string("ab")), std::string("xabzzu"));
     TS_ASSERT_EQUALS(replace(std::string("xyzzu"), std::string("b"),
                              std::string("w")), std::string("xyzzu"));
+  }
+
+  void testAtofLocaleC() {
+    TS_ASSERT_EQUALS(atof_locale_c("+1  "), 1.0);
+    TS_ASSERT_EQUALS(atof_locale_c(" 123.4"), 123.4);
+    TS_ASSERT_EQUALS(atof_locale_c("-3.14e-2"), -0.0314);
+    TS_ASSERT_EQUALS(atof_locale_c("1E-999"), 0.0);
+    TS_ASSERT_EQUALS(atof_locale_c("-1E-999"), 0.0);
+    TS_ASSERT_EQUALS(atof_locale_c("0.0"), 0.0);
+    TS_ASSERT_THROWS(atof_locale_c("1E+999"), BaseException&);
+    TS_ASSERT_THROWS(atof_locale_c("-1E+999"), BaseException&);
   }
 
 private:

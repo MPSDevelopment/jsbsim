@@ -36,7 +36,7 @@ cdef extern from "ExceptionManagement.h":
 cdef extern from "initialization/FGInitialCondition.h" namespace "JSBSim":
     cdef cppclass c_FGInitialCondition "JSBSim::FGInitialCondition":
         c_FGInitialCondition(c_FGInitialCondition* ic)
-        bool Load(const c_SGPath& rstfile, bool useStoredPath)
+        bool Load(const c_SGPath& rstfile, bool useAircraftPath)
 
 cdef extern from "input_output/FGPropertyManager.h" namespace "JSBSim":
     cdef cppclass c_FGPropertyManager "JSBSim::FGPropertyManager":
@@ -155,6 +155,8 @@ cdef extern from "FGFDMExec.h" namespace "JSBSim":
                        bool add_model_to_path) except +convertJSBSimToPyExc
         bool LoadScript(const c_SGPath& script, double delta_t,
                         const c_SGPath& initfile) except +convertJSBSimToPyExc
+        bool LoadPlanet(const c_SGPath& planet_path,
+                        bool useAircraftPath) except +convertJSBSimToPyExc
         bool SetEnginePath(const c_SGPath& path)
         bool SetAircraftPath(const c_SGPath& path)
         bool SetSystemsPath(const c_SGPath& path)
