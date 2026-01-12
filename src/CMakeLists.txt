@@ -173,6 +173,11 @@ endif()
 
 add_executable(JSBSim JSBSim.cpp)
 target_link_libraries(JSBSim libJSBSim)
+
+# Static link MinGW runtime libraries for standalone Windows executable
+if(MINGW AND NOT BUILD_SHARED_LIBS)
+  target_link_options(JSBSim PRIVATE -static-libgcc -static-libstdc++)
+endif()
 # Add JSBSim to the coverage analysis to avoid linking errors
 add_coverage(JSBSim)
 
