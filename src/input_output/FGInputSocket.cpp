@@ -46,6 +46,7 @@ INCLUDES
 #include "FGInputSocket.h"
 #include "FGFDMExec.h"
 #include "models/FGAircraft.h"
+#include "models/FGGroundReactions.h"
 #include "input_output/FGXMLElement.h"
 #include "initialization/FGInitialCondition.h"
 #include "models/FGPropagate.h"
@@ -353,6 +354,10 @@ void FGInputSocket::Read(bool Holding)
 
           // Apply updated IC values to propagate state
           FDMExec->GetPropagate()->SetInitialState(FDMExec->GetIC());
+
+          // Reset ground reactions to clear stale WOW, compressLength, compressSpeed values
+          // This prevents false crash detection and force calculation issues after reset
+          FDMExec->GetGroundReactions()->InitModel();
 
           // Run twice with dt=0 to update all model states and resolve inter-model dependencies
           FDMExec->Run();
