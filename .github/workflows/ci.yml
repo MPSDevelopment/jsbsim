@@ -3,7 +3,9 @@ name: Build JSBSim
 on:
   push:
     branches:
-      - main
+      - feature/custom-changes-v1.2.3
+    tags:
+      - 'v1.2.3*'
   workflow_dispatch:
 
 jobs:
@@ -127,7 +129,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/feature/custom-changes-v1.2.3' || startsWith(github.ref, 'refs/tags/v1.2.3')
 
     steps:
       - name: Download all artifacts
@@ -138,8 +140,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.0.0-${{ github.run_number }}
-          name: JSBSim Build ${{ github.run_number }}
+          tag_name: v1.2.3-${{ github.run_number }}
+          name: JSBSim v1.2.3 Build ${{ github.run_number }}
           body: |
             JSBSim flight dynamics model binaries.
 
