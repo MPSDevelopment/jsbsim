@@ -70,6 +70,7 @@ INCLUDES
 #include "FGFDMExec.h"
 #include "simgear/io/iostreams/sgstream.hxx"
 #include "FGInertial.h"
+#include "input_output/FGLog.h"
 
 using namespace std;
 
@@ -82,7 +83,6 @@ CLASS IMPLEMENTATION
 FGPropagate::FGPropagate(FGFDMExec* fdmex)
   : FGModel(fdmex)
 {
-  Debug(0);
   Name = "FGPropagate";
 
   Inertial = FDMExec->GetInertial();
@@ -360,7 +360,11 @@ void FGPropagate::Integrate( FGColumnVector3& Integrand,
   case eBuss1:
   case eBuss2:
   case eLocalLinearization:
-    throw("Can only use Buss (1 & 2) or local linearization integration methods in for rotational position!");
+    {
+      LogException err(FDMExec->GetLogger());
+      err << "Can only use Buss (1 & 2) or local linearization integration methods in for rotational position!";
+      throw err;
+    }
   default:
     break;
   }
@@ -453,12 +457,13 @@ void FGPropagate::Integrate( FGQuaternion& Integrand,
       double J = C2p*qk + C3p*qdotk - C4*Cp;
       double K = C2p*pk + C3p*pdotk - C4*Dp;
 
-      cout << "q:       " << q << endl;
+      FGLogging log(FDMExec->GetLogger(), LogLevel::INFO);
+      log << "q:       " << q << "\n";
 
       // Warning! In the paper of Barker et al. the quaternion components are not
       // ordered the same way as in JSBSim (see equations (2) and (3) of ref. [7]
       // as well as the comment just below equation (3))
-      cout << "FORTRAN: " << H << " , " << K << " , " << J << " , " << -G << endl;*/
+      log << "FORTRAN: " << H << " , " << K << " , " << J << " , " << -G << "\n";*/
     }
     break; // The quaternion q is not normal so the normalization needs to be done.
   case eNone: // do nothing, freeze rotational rate
@@ -702,35 +707,36 @@ FGColumnVector3 FGPropagate::GetEulerDeg(void) const
 
 void FGPropagate::DumpState(void)
 {
-  cout << endl;
-  cout << fgblue
-       << "------------------------------------------------------------------" << reset << endl;
-  cout << highint
-       << "State Report at sim time: " << FDMExec->GetSimTime() << " seconds" << reset << endl;
-  cout << "  " << underon
-       <<   "Position" << underoff << endl;
-  cout << "    ECI:   " << VState.vInertialPosition.Dump(", ") << " (x,y,z, in ft)" << endl;
-  cout << "    ECEF:  " << VState.vLocation << " (x,y,z, in ft)"  << endl;
-  cout << "    Local: " << VState.vLocation.GetGeodLatitudeDeg()
-                        << ", " << VState.vLocation.GetLongitudeDeg()
-                        << ", " << GetAltitudeASL() << " (geodetic lat, lon, alt ASL in deg and ft)" << endl;
+  FGLogging log(FDMExec->GetLogger(), LogLevel::INFO);
+  log << "\n";
+  log << LogFormat::BLUE
+      << "------------------------------------------------------------------" << LogFormat::RESET << "\n";
+  log << LogFormat::BOLD << fixed
+      << "State Report at sim time: " << FDMExec->GetSimTime() << " seconds" << LogFormat::RESET << "\n";
+  log << "  " << LogFormat::UNDERLINE_ON
+      << "Position" << LogFormat::UNDERLINE_OFF << "\n";
+  log << "    ECI:   " << VState.vInertialPosition.Dump(", ") << " (x,y,z, in ft)\n";
+  log << "    ECEF:  " << VState.vLocation << " (x,y,z, in ft)\n";
+  log << "    Local: " << VState.vLocation.GetGeodLatitudeDeg()
+                       << ", " << VState.vLocation.GetLongitudeDeg()
+                       << ", " << GetAltitudeASL() << " (geodetic lat, lon, alt ASL in deg and ft)\n";
 
-  cout << endl << "  " << underon
-       <<   "Orientation" << underoff << endl;
-  cout << "    ECI:   " << VState.qAttitudeECI.GetEulerDeg().Dump(", ") << " (phi, theta, psi in deg)" << endl;
-  cout << "    Local: " << VState.qAttitudeLocal.GetEulerDeg().Dump(", ") << " (phi, theta, psi in deg)" << endl;
+  log << "\n  " << LogFormat::UNDERLINE_ON
+      << "Orientation" << LogFormat::UNDERLINE_OFF << "\n";
+  log << "    ECI:   " << VState.qAttitudeECI.GetEulerDeg().Dump(", ") << " (phi, theta, psi in deg)\n";
+  log << "    Local: " << VState.qAttitudeLocal.GetEulerDeg().Dump(", ") << " (phi, theta, psi in deg)\n";
 
-  cout << endl << "  " << underon
-       <<   "Velocity" << underoff << endl;
-  cout << "    ECI:   " << VState.vInertialVelocity.Dump(", ") << " (x,y,z in ft/s)" << endl;
-  cout << "    ECEF:  " << (Tb2ec * VState.vUVW).Dump(", ")  << " (x,y,z in ft/s)"  << endl;
-  cout << "    Local: " << GetVel() << " (n,e,d in ft/sec)" << endl;
-  cout << "    Body:  " << GetUVW() << " (u,v,w in ft/sec)" << endl;
+  log << "\n  " << LogFormat::UNDERLINE_ON
+      << "Velocity" << LogFormat::UNDERLINE_OFF << "\n";
+  log << "    ECI:   " << VState.vInertialVelocity.Dump(", ") << " (x,y,z in ft/s)\n";
+  log << "    ECEF:  " << (Tb2ec * VState.vUVW).Dump(", ") << " (x,y,z in ft/s)\n";
+  log << "    Local: " << GetVel() << " (n,e,d in ft/sec)\n";
+  log << "    Body:  " << GetUVW() << " (u,v,w in ft/sec)\n";
 
-  cout << endl << "  " << underon
-       <<   "Body Rates (relative to given frame, expressed in body frame)" << underoff << endl;
-  cout << "    ECI:   " << (VState.vPQRi*radtodeg).Dump(", ") << " (p,q,r in deg/s)" << endl;
-  cout << "    ECEF:  " << (VState.vPQR*radtodeg).Dump(", ") << " (p,q,r in deg/s)" << endl;
+  log << "\n" << "  " << LogFormat::UNDERLINE_ON
+      << "Body Rates (relative to given frame, expressed in body frame)" << LogFormat::UNDERLINE_OFF << "\n";
+  log << "    ECI:   " << (VState.vPQRi * radtodeg).Dump(", ") << " (p,q,r in deg/s)" << "\n";
+  log << "    ECEF:  " << (VState.vPQR * radtodeg).Dump(", ") << " (p,q,r in deg/s)" << "\n";
 }
 
 //******************************************************************************
@@ -753,63 +759,66 @@ void FGPropagate::WriteStateFile(int num)
   case 1:
     outfile.open(path);
     if (outfile.is_open()) {
-      outfile << "<?xml version=\"1.0\"?>" << endl;
-      outfile << "<initialize name=\"reset00\">" << endl;
-      outfile << "  <ubody unit=\"FT/SEC\"> " << VState.vUVW(eU) << " </ubody> " << endl;
-      outfile << "  <vbody unit=\"FT/SEC\"> " << VState.vUVW(eV) << " </vbody> " << endl;
-      outfile << "  <wbody unit=\"FT/SEC\"> " << VState.vUVW(eW) << " </wbody> " << endl;
-      outfile << "  <phi unit=\"DEG\"> " << VState.qAttitudeLocal.GetEuler(ePhi)*radtodeg << " </phi>" << endl;
-      outfile << "  <theta unit=\"DEG\"> " << VState.qAttitudeLocal.GetEuler(eTht)*radtodeg << " </theta>" << endl;
-      outfile << "  <psi unit=\"DEG\"> " << VState.qAttitudeLocal.GetEuler(ePsi)*radtodeg << " </psi>" << endl;
-      outfile << "  <longitude unit=\"DEG\"> " << VState.vLocation.GetLongitudeDeg() << " </longitude>" << endl;
-      outfile << "  <latitude unit=\"DEG\"> " << VState.vLocation.GetLatitudeDeg() << " </latitude>" << endl;
-      outfile << "  <altitude unit=\"FT\"> " << GetDistanceAGL() << " </altitude>" << endl;
-      outfile << "</initialize>" << endl;
+      outfile << "<?xml version=\"1.0\"?>\n";
+      outfile << "<initialize name=\"reset00\">\n";
+      outfile << "  <ubody unit=\"FT/SEC\"> " << VState.vUVW(eU) << " </ubody> \n";
+      outfile << "  <vbody unit=\"FT/SEC\"> " << VState.vUVW(eV) << " </vbody> \n";
+      outfile << "  <wbody unit=\"FT/SEC\"> " << VState.vUVW(eW) << " </wbody> \n";
+      outfile << "  <phi unit=\"DEG\"> " << VState.qAttitudeLocal.GetEuler(ePhi)*radtodeg << " </phi>\n";
+      outfile << "  <theta unit=\"DEG\"> " << VState.qAttitudeLocal.GetEuler(eTht)*radtodeg << " </theta>\n";
+      outfile << "  <psi unit=\"DEG\"> " << VState.qAttitudeLocal.GetEuler(ePsi)*radtodeg << " </psi>\n";
+      outfile << "  <longitude unit=\"DEG\"> " << VState.vLocation.GetLongitudeDeg() << " </longitude>\n";
+      outfile << "  <latitude unit=\"DEG\"> " << VState.vLocation.GetLatitudeDeg() << " </latitude>\n";
+      outfile << "  <altitude unit=\"FT\"> " << GetDistanceAGL() << " </altitude>\n";
+      outfile << "</initialize>\n";
       outfile.close();
     } else {
-      cerr << "Could not open and/or write the state to the initial conditions file: "
-           << path << endl;
+      FGLogging log(FDMExec->GetLogger(), LogLevel::ERROR);
+      log << "Could not open and/or write the state to the initial conditions file: "
+          << path << "\n";
     }
     break;
   case 2:
     outfile.open(path);
     if (outfile.is_open()) {
-      outfile << "<?xml version=\"1.0\"?>" << endl;
-      outfile << "<initialize name=\"IC File\" version=\"2.0\">" << endl;
-      outfile << "" << endl;
-      outfile << "  <position frame=\"ECEF\">" << endl;
-      outfile << "    <latitude unit=\"DEG\" type=\"geodetic\"> " << VState.vLocation.GetGeodLatitudeDeg() << " </latitude>" << endl;
-      outfile << "    <longitude unit=\"DEG\"> " << VState.vLocation.GetLongitudeDeg() << " </longitude>" << endl;
-      outfile << "    <altitudeMSL unit=\"FT\"> " << GetAltitudeASL() << " </altitudeMSL>" << endl;
-      outfile << "  </position>" << endl;
-      outfile << "" << endl;
-      outfile << "  <orientation unit=\"DEG\" frame=\"LOCAL\">" << endl;
-      outfile << "    <yaw> " << VState.qAttitudeLocal.GetEulerDeg(eYaw) << " </yaw>" << endl;
-      outfile << "    <pitch> " << VState.qAttitudeLocal.GetEulerDeg(ePitch) << " </pitch>" << endl;
-      outfile << "    <roll> " << VState.qAttitudeLocal.GetEulerDeg(eRoll) << " </roll>" << endl;
-      outfile << "  </orientation>" << endl;
-      outfile << "" << endl;
-      outfile << "  <velocity unit=\"FT/SEC\" frame=\"LOCAL\">" << endl;
-      outfile << "    <x> " << GetVel(eNorth) << " </x>" << endl;
-      outfile << "    <y> " << GetVel(eEast) << " </y>" << endl;
-      outfile << "    <z> " << GetVel(eDown) << " </z>" << endl;
-      outfile << "  </velocity>" << endl;
-      outfile << "" << endl;
-      outfile << "  <attitude_rate unit=\"DEG/SEC\" frame=\"BODY\">" << endl;
-      outfile << "    <roll> " << (VState.vPQR*radtodeg)(eRoll) << " </roll>" << endl;
-      outfile << "    <pitch> " << (VState.vPQR*radtodeg)(ePitch) << " </pitch>" << endl;
-      outfile << "    <yaw> " << (VState.vPQR*radtodeg)(eYaw) << " </yaw>" << endl;
-      outfile << "  </attitude_rate>" << endl;
-      outfile << "" << endl;
-      outfile << "</initialize>" << endl;
+      outfile << "<?xml version=\"1.0\"?>\n";
+      outfile << "<initialize name=\"IC File\" version=\"2.0\">\n";
+      outfile << "\n";
+      outfile << "  <position frame=\"ECEF\">\n";
+      outfile << "    <latitude unit=\"DEG\" type=\"geodetic\"> " << VState.vLocation.GetGeodLatitudeDeg() << " </latitude>\n";
+      outfile << "    <longitude unit=\"DEG\"> " << VState.vLocation.GetLongitudeDeg() << " </longitude>\n";
+      outfile << "    <altitudeMSL unit=\"FT\"> " << GetAltitudeASL() << " </altitudeMSL>\n";
+      outfile << "  </position>\n";
+      outfile << "\n";
+      outfile << "  <orientation unit=\"DEG\" frame=\"LOCAL\">\n";
+      outfile << "    <yaw> " << VState.qAttitudeLocal.GetEulerDeg(eYaw) << " </yaw>\n";
+      outfile << "    <pitch> " << VState.qAttitudeLocal.GetEulerDeg(ePitch) << " </pitch>\n";
+      outfile << "    <roll> " << VState.qAttitudeLocal.GetEulerDeg(eRoll) << " </roll>\n";
+      outfile << "  </orientation>\n";
+      outfile << "\n";
+      outfile << "  <velocity unit=\"FT/SEC\" frame=\"LOCAL\">\n";
+      outfile << "    <x> " << GetVel(eNorth) << " </x>\n";
+      outfile << "    <y> " << GetVel(eEast) << " </y>\n";
+      outfile << "    <z> " << GetVel(eDown) << " </z>\n";
+      outfile << "  </velocity>\n";
+      outfile << "\n";
+      outfile << "  <attitude_rate unit=\"DEG/SEC\" frame=\"BODY\">\n";
+      outfile << "    <roll> " << (VState.vPQR*radtodeg)(eRoll) << " </roll>\n";
+      outfile << "    <pitch> " << (VState.vPQR*radtodeg)(ePitch) << " </pitch>\n";
+      outfile << "    <yaw> " << (VState.vPQR*radtodeg)(eYaw) << " </yaw>\n";
+      outfile << "  </attitude_rate>\n";
+      outfile << "\n";
+      outfile << "</initialize>\n";
       outfile.close();
     } else {
-      cerr << "Could not open and/or write the state to the initial conditions file: "
-           << path << endl;
+      FGLogging log(FDMExec->GetLogger(), LogLevel::ERROR);
+      log << "Could not open and/or write the state to the initial conditions file: "
+          << path << "\n";
     }
     break;
   default:
-    cerr << "When writing a state file, the supplied value must be 1 or 2 for the version number of the resulting IC file" << endl;
+    FGLogging log(FDMExec->GetLogger(), LogLevel::ERROR);
+    log << "When writing a state file, the supplied value must be 1 or 2 for the version number of the resulting IC file\n";
   }
 }
 
@@ -817,73 +826,77 @@ void FGPropagate::WriteStateFile(int num)
 
 void FGPropagate::bind(void)
 {
-  typedef double (FGPropagate::*PMF)(int) const;
-  typedef int (FGPropagate::*iPMF)(void) const;
-
   PropertyManager->Tie("velocities/h-dot-fps", this, &FGPropagate::Gethdot);
 
-  PropertyManager->Tie("velocities/v-north-fps", this, eNorth, (PMF)&FGPropagate::GetVel);
-  PropertyManager->Tie("velocities/v-east-fps", this, eEast, (PMF)&FGPropagate::GetVel);
-  PropertyManager->Tie("velocities/v-down-fps", this, eDown, (PMF)&FGPropagate::GetVel);
+  PropertyManager->Tie("velocities/v-north-fps", this, eNorth, &FGPropagate::GetVel);
+  PropertyManager->Tie("velocities/v-east-fps", this, eEast, &FGPropagate::GetVel);
+  PropertyManager->Tie("velocities/v-down-fps", this, eDown, &FGPropagate::GetVel);
 
-  PropertyManager->Tie("velocities/u-fps", this, eU, (PMF)&FGPropagate::GetUVW);
-  PropertyManager->Tie("velocities/v-fps", this, eV, (PMF)&FGPropagate::GetUVW);
-  PropertyManager->Tie("velocities/w-fps", this, eW, (PMF)&FGPropagate::GetUVW);
+  PropertyManager->Tie("velocities/u-fps", this, eU, &FGPropagate::GetUVW);
+  PropertyManager->Tie("velocities/v-fps", this, eV, &FGPropagate::GetUVW);
+  PropertyManager->Tie("velocities/w-fps", this, eW, &FGPropagate::GetUVW);
 
-  PropertyManager->Tie("velocities/p-rad_sec", this, eP, (PMF)&FGPropagate::GetPQR);
-  PropertyManager->Tie("velocities/q-rad_sec", this, eQ, (PMF)&FGPropagate::GetPQR);
-  PropertyManager->Tie("velocities/r-rad_sec", this, eR, (PMF)&FGPropagate::GetPQR);
+  PropertyManager->Tie("velocities/p-rad_sec", this, eP, &FGPropagate::GetPQR);
+  PropertyManager->Tie("velocities/q-rad_sec", this, eQ, &FGPropagate::GetPQR);
+  PropertyManager->Tie("velocities/r-rad_sec", this, eR, &FGPropagate::GetPQR);
 
-  PropertyManager->Tie("velocities/pi-rad_sec", this, eP, (PMF)&FGPropagate::GetPQRi);
-  PropertyManager->Tie("velocities/qi-rad_sec", this, eQ, (PMF)&FGPropagate::GetPQRi);
-  PropertyManager->Tie("velocities/ri-rad_sec", this, eR, (PMF)&FGPropagate::GetPQRi);
+  PropertyManager->Tie("velocities/pi-rad_sec", this, eP, &FGPropagate::GetPQRi);
+  PropertyManager->Tie("velocities/qi-rad_sec", this, eQ, &FGPropagate::GetPQRi);
+  PropertyManager->Tie("velocities/ri-rad_sec", this, eR, &FGPropagate::GetPQRi);
 
-  PropertyManager->Tie("velocities/eci-x-fps", this, eX, (PMF)&FGPropagate::GetInertialVelocity);
-  PropertyManager->Tie("velocities/eci-y-fps", this, eY, (PMF)&FGPropagate::GetInertialVelocity);
-  PropertyManager->Tie("velocities/eci-z-fps", this, eZ, (PMF)&FGPropagate::GetInertialVelocity);
+  PropertyManager->Tie("velocities/eci-x-fps", this, eX, &FGPropagate::GetInertialVelocity);
+  PropertyManager->Tie("velocities/eci-y-fps", this, eY, &FGPropagate::GetInertialVelocity);
+  PropertyManager->Tie("velocities/eci-z-fps", this, eZ, &FGPropagate::GetInertialVelocity);
 
   PropertyManager->Tie("velocities/eci-velocity-mag-fps", this, &FGPropagate::GetInertialVelocityMagnitude);
   PropertyManager->Tie("velocities/ned-velocity-mag-fps", this, &FGPropagate::GetNEDVelocityMagnitude);
 
-  PropertyManager->Tie("position/h-sl-ft", this, &FGPropagate::GetAltitudeASL, &FGPropagate::SetAltitudeASL);
-  PropertyManager->Tie("position/h-sl-meters", this, &FGPropagate::GetAltitudeASLmeters, &FGPropagate::SetAltitudeASLmeters);
-  PropertyManager->Tie("position/lat-gc-rad", this, &FGPropagate::GetLatitude, &FGPropagate::SetLatitude);
-  PropertyManager->Tie("position/long-gc-rad", this, &FGPropagate::GetLongitude, &FGPropagate::SetLongitude);
-  PropertyManager->Tie("position/lat-gc-deg", this, &FGPropagate::GetLatitudeDeg, &FGPropagate::SetLatitudeDeg);
-  PropertyManager->Tie("position/long-gc-deg", this, &FGPropagate::GetLongitudeDeg, &FGPropagate::SetLongitudeDeg);
+  PropertyManager->Tie("position/h-sl-ft", this, &FGPropagate::GetAltitudeASL,
+                       &FGPropagate::SetAltitudeASL);
+  PropertyManager->Tie("position/h-sl-meters", this, &FGPropagate::GetAltitudeASLmeters,
+                       &FGPropagate::SetAltitudeASLmeters);
+  PropertyManager->Tie("position/lat-gc-rad", this, &FGPropagate::GetLatitude,
+                       &FGPropagate::SetLatitude);
+  PropertyManager->Tie("position/long-gc-rad", this, &FGPropagate::GetLongitude,
+                       &FGPropagate::SetLongitude);
+  PropertyManager->Tie("position/lat-gc-deg", this, &FGPropagate::GetLatitudeDeg,
+                       &FGPropagate::SetLatitudeDeg);
+  PropertyManager->Tie("position/long-gc-deg", this, &FGPropagate::GetLongitudeDeg,
+                       &FGPropagate::SetLongitudeDeg);
   PropertyManager->Tie("position/lat-geod-rad", this, &FGPropagate::GetGeodLatitudeRad);
   PropertyManager->Tie("position/lat-geod-deg", this, &FGPropagate::GetGeodLatitudeDeg);
   PropertyManager->Tie("position/geod-alt-ft", this, &FGPropagate::GetGeodeticAltitude);
-  PropertyManager->Tie("position/h-agl-ft", this,  &FGPropagate::GetDistanceAGL, &FGPropagate::SetDistanceAGL);
+  PropertyManager->Tie("position/h-agl-ft", this,  &FGPropagate::GetDistanceAGL,
+                       &FGPropagate::SetDistanceAGL);
   PropertyManager->Tie("position/geod-alt-km", this, &FGPropagate::GetGeodeticAltitudeKm);
-  PropertyManager->Tie("position/h-agl-km", this,  &FGPropagate::GetDistanceAGLKm, &FGPropagate::SetDistanceAGLKm);
+  PropertyManager->Tie("position/h-agl-km", this,  &FGPropagate::GetDistanceAGLKm,
+                       &FGPropagate::SetDistanceAGLKm);
   PropertyManager->Tie("position/radius-to-vehicle-ft", this, &FGPropagate::GetRadius);
-  PropertyManager->Tie("position/terrain-elevation-asl-ft", this,
-                          &FGPropagate::GetTerrainElevation,
-                          &FGPropagate::SetTerrainElevation);
+  PropertyManager->Tie("position/terrain-elevation-asl-ft", this, &FGPropagate::GetTerrainElevation,
+                       &FGPropagate::SetTerrainElevation);
 
-  PropertyManager->Tie("position/eci-x-ft", this, eX, (PMF)&FGPropagate::GetInertialPosition);
-  PropertyManager->Tie("position/eci-y-ft", this, eY, (PMF)&FGPropagate::GetInertialPosition);
-  PropertyManager->Tie("position/eci-z-ft", this, eZ, (PMF)&FGPropagate::GetInertialPosition);
+  PropertyManager->Tie("position/eci-x-ft", this, eX, &FGPropagate::GetInertialPosition);
+  PropertyManager->Tie("position/eci-y-ft", this, eY, &FGPropagate::GetInertialPosition);
+  PropertyManager->Tie("position/eci-z-ft", this, eZ, &FGPropagate::GetInertialPosition);
 
-  PropertyManager->Tie("position/ecef-x-ft", this, eX, (PMF)&FGPropagate::GetLocation);
-  PropertyManager->Tie("position/ecef-y-ft", this, eY, (PMF)&FGPropagate::GetLocation);
-  PropertyManager->Tie("position/ecef-z-ft", this, eZ, (PMF)&FGPropagate::GetLocation);
+  PropertyManager->Tie("position/ecef-x-ft", this, eX, &FGPropagate::GetLocation);
+  PropertyManager->Tie("position/ecef-y-ft", this, eY, &FGPropagate::GetLocation);
+  PropertyManager->Tie("position/ecef-z-ft", this, eZ, &FGPropagate::GetLocation);
 
   PropertyManager->Tie("position/epa-rad", this, &FGPropagate::GetEarthPositionAngle);
   PropertyManager->Tie("metrics/terrain-radius", this, &FGPropagate::GetLocalTerrainRadius);
 
-  PropertyManager->Tie("attitude/phi-rad", this, (int)ePhi, (PMF)&FGPropagate::GetEuler);
-  PropertyManager->Tie("attitude/theta-rad", this, (int)eTht, (PMF)&FGPropagate::GetEuler);
-  PropertyManager->Tie("attitude/psi-rad", this, (int)ePsi, (PMF)&FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/phi-rad", this, ePhi, &FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/theta-rad", this, eTht, &FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/psi-rad", this, ePsi, &FGPropagate::GetEuler);
 
-  PropertyManager->Tie("attitude/phi-deg", this, (int)ePhi, (PMF)&FGPropagate::GetEulerDeg);
-  PropertyManager->Tie("attitude/theta-deg", this, (int)eTht, (PMF)&FGPropagate::GetEulerDeg);
-  PropertyManager->Tie("attitude/psi-deg", this, (int)ePsi, (PMF)&FGPropagate::GetEulerDeg);
+  PropertyManager->Tie("attitude/phi-deg", this, ePhi, &FGPropagate::GetEulerDeg);
+  PropertyManager->Tie("attitude/theta-deg", this, eTht, &FGPropagate::GetEulerDeg);
+  PropertyManager->Tie("attitude/psi-deg", this, ePsi, &FGPropagate::GetEulerDeg);
 
-  PropertyManager->Tie("attitude/roll-rad", this, (int)ePhi, (PMF)&FGPropagate::GetEuler);
-  PropertyManager->Tie("attitude/pitch-rad", this, (int)eTht, (PMF)&FGPropagate::GetEuler);
-  PropertyManager->Tie("attitude/heading-true-rad", this, (int)ePsi, (PMF)&FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/roll-rad", this, ePhi, &FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/pitch-rad", this, eTht, &FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/heading-true-rad", this, ePsi, &FGPropagate::GetEuler);
 
   PropertyManager->Tie("orbital/specific-angular-momentum-ft2_sec", &h);
   PropertyManager->Tie("orbital/inclination-deg", &Inclination);
@@ -900,7 +913,8 @@ void FGPropagate::bind(void)
   PropertyManager->Tie("simulation/integrator/position/rotational", (int*)&integrator_rotational_position);
   PropertyManager->Tie("simulation/integrator/position/translational", (int*)&integrator_translational_position);
 
-  PropertyManager->Tie("simulation/write-state-file", this, (iPMF)0, &FGPropagate::WriteStateFile);
+  PropertyManager->Tie<FGPropagate, int>("simulation/write-state-file", this,
+                                         nullptr, &FGPropagate::WriteStateFile);
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -932,121 +946,116 @@ void FGPropagate::Debug(int from)
     }
   }
   if (debug_lvl & 2 ) { // Instantiation/Destruction notification
-    if (from == 0) cout << "Instantiated: FGPropagate" << endl;
-    if (from == 1) cout << "Destroyed:    FGPropagate" << endl;
+    FGLogging log(FDMExec->GetLogger(), LogLevel::DEBUG);
+    if (from == 0) log << "Instantiated: FGPropagate\n";
+    if (from == 1) log << "Destroyed:    FGPropagate\n";
   }
   if (debug_lvl & 4 ) { // Run() method entry print for FGModel-derived objects
   }
   if (debug_lvl & 8 && from == 2) { // Runtime state variables
-    cout << endl << fgblue << highint << left
-         << "  Propagation Report (English units: ft, degrees) at simulation time " << FDMExec->GetSimTime() << " seconds"
-         << reset << endl;
-    cout << endl;
-    cout << highint << "  Earth Position Angle (deg): " << setw(8) << setprecision(3) << reset
-         << GetEarthPositionAngleDeg() << endl;
-    cout << endl;
-    cout << highint << "  Body velocity (ft/sec): " << setw(8) << setprecision(3) << reset << VState.vUVW << endl;
-    cout << highint << "  Local velocity (ft/sec): " << setw(8) << setprecision(3) << reset << vVel << endl;
-    cout << highint << "  Inertial velocity (ft/sec): " << setw(8) << setprecision(3) << reset << VState.vInertialVelocity << endl;
-    cout << highint << "  Inertial Position (ft): " << setw(10) << setprecision(3) << reset << VState.vInertialPosition << endl;
-    cout << highint << "  Latitude (deg): " << setw(8) << setprecision(3) << reset << VState.vLocation.GetLatitudeDeg() << endl;
-    cout << highint << "  Longitude (deg): " << setw(8) << setprecision(3) << reset << VState.vLocation.GetLongitudeDeg() << endl;
-    cout << highint << "  Altitude ASL (ft): " << setw(8) << setprecision(3) << reset << GetAltitudeASL() << endl;
-//    cout << highint << "  Acceleration (NED, ft/sec^2): " << setw(8) << setprecision(3) << reset << Tb2l*GetUVWdot() << endl;
-    cout << endl;
-    cout << highint << "  Matrix ECEF to Body (Orientation of Body with respect to ECEF): "
-                    << reset << endl << Tec2b.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Tec2b.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    FGLogging log(FDMExec->GetLogger(), LogLevel::DEBUG);
+    log << "\n" << LogFormat::BLUE << LogFormat::BOLD << left << fixed
+        << "  Propagation Report (English units: ft, degrees) at simulation time " << FDMExec->GetSimTime() << " seconds"
+        << LogFormat::RESET << "\n\n";
+    log << LogFormat::BOLD << "  Earth Position Angle (deg): " << setw(8) << setprecision(3) << LogFormat::RESET
+        << GetEarthPositionAngleDeg() << "\n\n";
+    log << LogFormat::BOLD << "  Body velocity (ft/sec): " << setw(8) << setprecision(3) << LogFormat::RESET << VState.vUVW << "\n";
+    log << LogFormat::BOLD << "  Local velocity (ft/sec): " << setw(8) << setprecision(3) << LogFormat::RESET << vVel << "\n";
+    log << LogFormat::BOLD << "  Inertial velocity (ft/sec): " << setw(8) << setprecision(3) << LogFormat::RESET << VState.vInertialVelocity << "\n";
+    log << LogFormat::BOLD << "  Inertial Position (ft): " << setw(10) << setprecision(3) << LogFormat::RESET << VState.vInertialPosition << "\n";
+    log << LogFormat::BOLD << "  Latitude (deg): " << setw(8) << setprecision(3) << LogFormat::RESET << VState.vLocation.GetLatitudeDeg() << "\n";
+    log << LogFormat::BOLD << "  Longitude (deg): " << setw(8) << setprecision(3) << LogFormat::RESET << VState.vLocation.GetLongitudeDeg() << "\n";
+    log << LogFormat::BOLD << "  Altitude ASL (ft): " << setw(8) << setprecision(3) << LogFormat::RESET << GetAltitudeASL() << "\n";
+    //    log << LogFormat::BOLD << "  Acceleration (NED, ft/sec^2): " << setw(8) << setprecision(3) << LogFormat::RESET << Tb2l*GetUVWdot() << "\n";
+    log << "\n";
+    log << LogFormat::BOLD << "  Matrix ECEF to Body (Orientation of Body with respect to ECEF): \n"
+        << LogFormat::RESET << Tec2b.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Tec2b.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix Body to ECEF (Orientation of ECEF with respect to Body):"
-                    << reset << endl << Tb2ec.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Tb2ec.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    log << LogFormat::BOLD << "  Matrix Body to ECEF (Orientation of ECEF with respect to Body):\n"
+        << LogFormat::RESET << Tb2ec.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Tb2ec.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix Local to Body (Orientation of Body with respect to Local):"
-                    << reset << endl << Tl2b.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Tl2b.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    log << LogFormat::BOLD << "  Matrix Local to Body (Orientation of Body with respect to Local):\n"
+        << LogFormat::RESET << Tl2b.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Tl2b.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix Body to Local (Orientation of Local with respect to Body):"
-                    << reset << endl << Tb2l.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Tb2l.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    log << LogFormat::BOLD << "  Matrix Body to Local (Orientation of Local with respect to Body):\n"
+        << LogFormat::RESET << Tb2l.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Tb2l.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix Local to ECEF (Orientation of ECEF with respect to Local):"
-                    << reset << endl << Tl2ec.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Tl2ec.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    log << LogFormat::BOLD << "  Matrix Local to ECEF (Orientation of ECEF with respect to Local):\n"
+        << LogFormat::RESET << Tl2ec.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Tl2ec.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix ECEF to Local (Orientation of Local with respect to ECEF):"
-                    << reset << endl << Tec2l.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Tec2l.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    log << LogFormat::BOLD << "  Matrix ECEF to Local (Orientation of Local with respect to ECEF):\n"
+        << LogFormat::RESET << Tec2l.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Tec2l.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix ECEF to Inertial (Orientation of Inertial with respect to ECEF):"
-                    << reset << endl << Tec2i.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Tec2i.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    log << LogFormat::BOLD << "  Matrix ECEF to Inertial (Orientation of Inertial with respect to ECEF):\n"
+        << LogFormat::RESET << Tec2i.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Tec2i.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix Inertial to ECEF (Orientation of ECEF with respect to Inertial):"
-                    << reset << endl << Ti2ec.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Ti2ec.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    log << LogFormat::BOLD << "  Matrix Inertial to ECEF (Orientation of ECEF with respect to Inertial):\n"
+        << LogFormat::RESET << Ti2ec.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Ti2ec.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix Inertial to Body (Orientation of Body with respect to Inertial):"
-                    << reset << endl << Ti2b.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Ti2b.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    log << LogFormat::BOLD << "  Matrix Inertial to Body (Orientation of Body with respect to Inertial):\n"
+        << LogFormat::RESET << Ti2b.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Ti2b.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix Body to Inertial (Orientation of Inertial with respect to Body):"
-                    << reset << endl << Tb2i.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Tb2i.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    log << LogFormat::BOLD << "  Matrix Body to Inertial (Orientation of Inertial with respect to Body):\n"
+        << LogFormat::RESET << Tb2i.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Tb2i.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix Inertial to Local (Orientation of Local with respect to Inertial):"
-                    << reset << endl << Ti2l.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Ti2l.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
+    log << LogFormat::BOLD << "  Matrix Inertial to Local (Orientation of Local with respect to Inertial):\n"
+        << LogFormat::RESET << Ti2l.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Ti2l.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
 
-    cout << highint << "  Matrix Local to Inertial (Orientation of Inertial with respect to Local):"
-                    << reset << endl << Tl2i.Dump("\t", "    ") << endl;
-    cout << highint << "    Associated Euler angles (deg): " << setw(8)
-                    << setprecision(3) << reset << (Tl2i.GetQuaternion().GetEuler()*radtodeg)
-                    << endl << endl;
-
-    cout << setprecision(6); // reset the output stream
+    log << LogFormat::BOLD << "  Matrix Local to Inertial (Orientation of Inertial with respect to Local):\n"
+        << LogFormat::RESET << Tl2i.Dump("\t", "    ");
+    log << LogFormat::BOLD << "\n    Associated Euler angles (deg): " << setw(8)
+        << setprecision(3) << LogFormat::RESET << (Tl2i.GetQuaternion().GetEuler()*radtodeg)
+                  << "\n\n";
   }
   if (debug_lvl & 16) { // Sanity checking
     if (from == 2) { // State sanity checking
       if (fabs(VState.vPQR.Magnitude()) > 1000.0) {
-        stringstream s;
-        s << "Vehicle rotation rate is excessive (>1000 rad/sec): " << VState.vPQR.Magnitude();
-        cerr << endl << s.str() << endl;
-        throw BaseException(s.str());
+        LogException err(FDMExec->GetLogger());
+        err << "Vehicle rotation rate is excessive (>1000 rad/sec): " << VState.vPQR.Magnitude() << "\n";
+        throw err;
       }
       if (fabs(VState.vUVW.Magnitude()) > 1.0e10) {
-        stringstream s;
-        s << "Vehicle velocity is excessive (>1e10 ft/sec): " << VState.vUVW.Magnitude();
-        cerr << endl << s.str() << endl;
-        throw BaseException(s.str());
+        LogException err(FDMExec->GetLogger());
+        err << "Vehicle velocity is excessive (>1e10 ft/sec): " << VState.vUVW.Magnitude() << "\n";
+        throw err;
       }
       if (fabs(GetDistanceAGL()) > 1e10) {
-        stringstream s;
-        s << "Vehicle altitude is excessive (>1e10 ft): " << GetDistanceAGL();
-        cerr << endl << s.str() << endl;
-        throw BaseException(s.str());
+        LogException err(FDMExec->GetLogger());
+        err << "Vehicle altitude is excessive (>1e10 ft): " << GetDistanceAGL() << "\n";
+        throw err;
       }
     }
   }

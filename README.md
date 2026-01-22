@@ -24,7 +24,7 @@ Features include:
 
 JSBSim also includes the following bindings:
 
-* A [Python](https://www.python.org) module which provides the exact same features as the C++ library
+* A [Python](https://www.python.org) module which provides the exact same features as the C++ library with Python based simulation samples that can be run on Google Colab [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](#python-module-examples)
 * A [Matlab S-Function](https://github.com/JSBSim-Team/jsbsim/blob/master/matlab/README.md) that interfaces JSBSim with [MATLAB Simulink](https://fr.mathworks.com/products/simulink.html).
 * An [Unreal Engine plugin](https://github.com/JSBSim-Team/jsbsim/blob/master/UnrealEngine/README.md) to build a connection between the flight dynamics model from JSBSim and the entire virtual environment provided by [Unreal engine](https://www.unrealengine.com).
 
@@ -58,7 +58,7 @@ Another more advanced application within the field of Deep Reinforcement Learnin
 
 ### Windows
 
-A Windows installer `JSBSim-1.2.2-setup.exe` is available in the [release section](https://github.com/JSBSim-Team/jsbsim/releases/tag/v1.2.2). It installs the 2 executables along with aircraft data and some example scripts:
+A Windows installer `JSBSim-1.2.3-setup.exe` is available in the [release section](https://github.com/JSBSim-Team/jsbsim/releases/tag/v1.2.3). It installs the 2 executables along with aircraft data and some example scripts:
 
 * `JSBSim.exe` which runs FDM simulations.
 * `aeromatic.exe` which builds aircraft definitions from Question/Answer interface
@@ -69,11 +69,11 @@ The Windows installer also contains the files needed to build the JSBSim Matlab 
 
 ### Ubuntu Linux
 
-Debian packages for Ubuntu Linux "Jammy" 22.04 LTS and "Noble" 24.04 LTS for 64 bits platforms are also available in the [JSBSim project release section](https://github.com/JSBSim-Team/jsbsim/releases/tag/v1.2.2). There are 3 packages for each platform:
+Debian packages for Ubuntu Linux "Jammy" 22.04 LTS and "Noble" 24.04 LTS for 64 bits platforms are also available in the [JSBSim project release section](https://github.com/JSBSim-Team/jsbsim/releases/tag/v1.2.3). There are 3 packages for each platform:
 
-* `JSBSim_1.2.2-1471.amd64.deb` which installs the executables `JSBSim` and `aeromatic`
-* `JSBSim-devel_1.2.2-1471.amd64.deb` which installs the development resources (headers and libraries)
-* `python3-JSBSim_1.2.2-1471.amd64.deb` which installs the Python module of JSBSim
+* `JSBSim_1.2.3-1561.amd64.deb` which installs the executables `JSBSim` and `aeromatic`
+* `JSBSim-devel_1.2.3-1561.amd64.deb` which installs the development resources (headers and libraries)
+* `python3-JSBSim_1.2.3-1561.amd64.deb` which installs the Python module of JSBSim
 
 ### Python module
 
@@ -121,7 +121,7 @@ At the moment, JSBSim does not provide binaries for platforms other than Windows
 
 ### Aircraft data and example scripts
 
-JSBSim aircraft data and example scripts are automatically installed if you are using [Python wheel packages](https://github.com/bcoconni/jsbsim#python-module). Otherwise, you can get aircraft data and example scripts by downloading either the [zip package](https://github.com/JSBSim-Team/jsbsim/archive/v1.2.2.zip) or the [tar.gz package](https://github.com/JSBSim-Team/jsbsim/archive/v1.2.2.tar.gz).
+JSBSim aircraft data and example scripts are automatically installed if you are using [Python wheel packages](https://github.com/bcoconni/jsbsim#python-module). Otherwise, you can get aircraft data and example scripts by downloading either the [zip package](https://github.com/JSBSim-Team/jsbsim/archive/v1.2.3.zip) or the [tar.gz package](https://github.com/JSBSim-Team/jsbsim/archive/v1.2.3.tar.gz).
 
 ## Quick start
 
@@ -196,14 +196,19 @@ A more elaborate example of Python code is [JSBSim.py](https://github.com/JSBSim
 ## Python module examples
 
 The [examples/python](https://github.com/JSBSim-Team/jsbsim/tree/master/examples/python) directory contains a number of example Python based scripts embedded in Jupyter notebooks demonstrating the use of JSBSim to determine and analyse aircraft performance.
+You can also quickly try it out using Google Colab by clicking on the icon.
 
 - [AoA vs CAS.ipynb](https://github.com/JSBSim-Team/jsbsim/blob/master/examples/python/AoA%20vs%20CAS.ipynb) calculates and plots the AoA (Angle of Attack) versus CAS (Calibrated Air Speed) for level trim for a range in aircraft weight, altitude and cg (center of gravity).
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/JSBSim-Team/jsbsim/blob/master/examples/python/AoA%20vs%20CAS.ipynb)
 
 - [Trim Envelope.ipynb](https://github.com/JSBSim-Team/jsbsim/blob/master/examples/python/Trim%20Envelope.ipynb) calculates a set of trim points for an aircraft over a range of airspeeds and flight path angles. Required thrust and AoA is indicated via a colormap.
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/JSBSim-Team/jsbsim/blob/master/examples/python/Trim%20Envelope.ipynb)
 
 - [Rudder Kick.ipynb](https://github.com/JSBSim-Team/jsbsim/blob/master/examples/python/Rudder%20Kick.ipynb) simulate a pilot performing a rudder kick test with time histories of the control inputs and sideslip angle plotted.
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/JSBSim-Team/jsbsim/blob/master/examples/python/Rudder%20Kick.ipynb)
 
 - [Thrust Vectoring Analysis.ipynb](https://github.com/JSBSim-Team/jsbsim/blob/master/examples/python/Thrust%20Vectoring%20Analysis.ipynb) vary the thrust vector angle to determine the minimum fuel burn for cruise and climb conditions.
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/JSBSim-Team/jsbsim/blob/master/examples/python/Thrust%20Vectoring%20Analysis.ipynb)
 
 # Contributing Source Code Changes
 

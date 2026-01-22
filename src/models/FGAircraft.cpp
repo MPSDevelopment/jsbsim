@@ -39,7 +39,9 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include "FGAircraft.h"
+#include "FGFDMExec.h"
 #include "input_output/FGXMLElement.h"
+#include "input_output/FGLog.h"
 
 using namespace std;
 
@@ -172,7 +174,6 @@ bool FGAircraft::Load(Element* el)
 
 void FGAircraft::bind(void)
 {
-  typedef double (FGAircraft::*PMF)(int) const;
   PropertyManager->Tie("metrics/Sw-sqft", this, &FGAircraft::GetWingArea, &FGAircraft::SetWingArea);
   PropertyManager->Tie("metrics/bw-ft", this, &FGAircraft::GetWingSpan);
   PropertyManager->Tie("metrics/cbarw-ft", this, &FGAircraft::Getcbar);
@@ -186,15 +187,15 @@ void FGAircraft::bind(void)
   PropertyManager->Tie("metrics/lv-norm", this, &FGAircraft::Getlbarv);
   PropertyManager->Tie("metrics/vbarh-norm", this, &FGAircraft::Getvbarh);
   PropertyManager->Tie("metrics/vbarv-norm", this, &FGAircraft::Getvbarv);
-  PropertyManager->Tie("metrics/aero-rp-x-in", this, eX, (PMF)&FGAircraft::GetXYZrp, &FGAircraft::SetXYZrp);
-  PropertyManager->Tie("metrics/aero-rp-y-in", this, eY, (PMF)&FGAircraft::GetXYZrp, &FGAircraft::SetXYZrp);
-  PropertyManager->Tie("metrics/aero-rp-z-in", this, eZ, (PMF)&FGAircraft::GetXYZrp, &FGAircraft::SetXYZrp);
-  PropertyManager->Tie("metrics/eyepoint-x-in", this, eX, (PMF)&FGAircraft::GetXYZep);
-  PropertyManager->Tie("metrics/eyepoint-y-in", this, eY,(PMF)&FGAircraft::GetXYZep);
-  PropertyManager->Tie("metrics/eyepoint-z-in", this, eZ, (PMF)&FGAircraft::GetXYZep);
-  PropertyManager->Tie("metrics/visualrefpoint-x-in", this, eX, (PMF)&FGAircraft::GetXYZvrp);
-  PropertyManager->Tie("metrics/visualrefpoint-y-in", this, eY, (PMF)&FGAircraft::GetXYZvrp);
-  PropertyManager->Tie("metrics/visualrefpoint-z-in", this, eZ, (PMF)&FGAircraft::GetXYZvrp);
+  PropertyManager->Tie("metrics/aero-rp-x-in", this, eX, &FGAircraft::GetXYZrp, &FGAircraft::SetXYZrp);
+  PropertyManager->Tie("metrics/aero-rp-y-in", this, eY, &FGAircraft::GetXYZrp, &FGAircraft::SetXYZrp);
+  PropertyManager->Tie("metrics/aero-rp-z-in", this, eZ, &FGAircraft::GetXYZrp, &FGAircraft::SetXYZrp);
+  PropertyManager->Tie("metrics/eyepoint-x-in", this, eX, &FGAircraft::GetXYZep);
+  PropertyManager->Tie("metrics/eyepoint-y-in", this, eY,&FGAircraft::GetXYZep);
+  PropertyManager->Tie("metrics/eyepoint-z-in", this, eZ, &FGAircraft::GetXYZep);
+  PropertyManager->Tie("metrics/visualrefpoint-x-in", this, eX, &FGAircraft::GetXYZvrp);
+  PropertyManager->Tie("metrics/visualrefpoint-y-in", this, eY, &FGAircraft::GetXYZvrp);
+  PropertyManager->Tie("metrics/visualrefpoint-z-in", this, eZ, &FGAircraft::GetXYZvrp);
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -222,23 +223,25 @@ void FGAircraft::Debug(int from)
 
   if (debug_lvl & 1) { // Standard console startup message output
     if (from == 2) { // Loading
-      cout << endl << "  Aircraft Metrics:" << endl;
-      cout << "    WingArea: " << WingArea  << endl;
-      cout << "    WingSpan: " << WingSpan  << endl;
-      cout << "    Incidence: " << WingIncidence << endl;
-      cout << "    Chord: " << cbar << endl;
-      cout << "    H. Tail Area: " << HTailArea << endl;
-      cout << "    H. Tail Arm: " << HTailArm << endl;
-      cout << "    V. Tail Area: " << VTailArea << endl;
-      cout << "    V. Tail Arm: " << VTailArm << endl;
-      cout << "    Eyepoint (x, y, z): " << vXYZep << endl;
-      cout << "    Ref Pt (x, y, z): " << vXYZrp << endl;
-      cout << "    Visual Ref Pt (x, y, z): " << vXYZvrp << endl;
+      FGLogging log(FDMExec->GetLogger(), LogLevel::DEBUG);
+      log << "\n  Aircraft Metrics:\n"  << fixed;
+      log << "    WingArea: " << WingArea  << "\n";
+      log << "    WingSpan: " << WingSpan  << "\n";
+      log << "    Incidence: " << WingIncidence << "\n";
+      log << "    Chord: " << cbar << "\n";
+      log << "    H. Tail Area: " << HTailArea << "\n";
+      log << "    H. Tail Arm: " << HTailArm << "\n";
+      log << "    V. Tail Area: " << VTailArea << "\n";
+      log << "    V. Tail Arm: " << VTailArm << "\n";
+      log << "    Eyepoint (x, y, z): " << vXYZep << "\n";
+      log << "    Ref Pt (x, y, z): " << vXYZrp << "\n";
+      log << "    Visual Ref Pt (x, y, z): " << vXYZvrp << "\n";
     }
   }
   if (debug_lvl & 2 ) { // Instantiation/Destruction notification
-    if (from == 0) cout << "Instantiated: FGAircraft" << endl;
-    if (from == 1) cout << "Destroyed:    FGAircraft" << endl;
+    FGLogging log(FDMExec->GetLogger(), LogLevel::DEBUG);
+    if (from == 0) log << "Instantiated: FGAircraft\n";
+    if (from == 1) log << "Destroyed:    FGAircraft\n";
   }
   if (debug_lvl & 4 ) { // Run() method entry print for FGModel-derived objects
   }

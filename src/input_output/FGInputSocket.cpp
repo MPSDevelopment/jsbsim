@@ -38,17 +38,13 @@ HISTORY
 INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-#include <cstring>
-#include <cstdlib>
-#include <sstream>
-#include <iomanip>
-
 #include "FGInputSocket.h"
 #include "FGFDMExec.h"
 #include "models/FGAircraft.h"
 #include "models/FGGroundReactions.h"
-#include "input_output/FGXMLElement.h"
-#include "input_output/string_utilities.h"
+#include "FGXMLElement.h"
+#include "string_utilities.h"
+#include "FGLog.h"
 #include "initialization/FGInitialCondition.h"
 #include "models/FGPropagate.h"
 
@@ -83,7 +79,8 @@ bool FGInputSocket::Load(Element* el)
   SockPort = atoi(el->GetAttributeValue("port").c_str());
 
   if (SockPort == 0) {
-    cerr << endl << "No port assigned in input element" << endl;
+    FGXMLLogging log(FDMExec->GetLogger(), el, LogLevel::ERROR);
+    log << "No port assigned in input element\n";
     return false;
   }
 

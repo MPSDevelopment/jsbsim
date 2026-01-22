@@ -49,6 +49,8 @@ INCLUDES
 
 #include "FGFDMExec.h"
 #include "FGPropulsion.h"
+#include "input_output/FGModelLoader.h"
+#include "input_output/FGLog.h"
 #include "models/FGMassBalance.h"
 #include "models/propulsion/FGRocket.h"
 #include "models/propulsion/FGTurbine.h"
@@ -56,7 +58,6 @@ INCLUDES
 #include "models/propulsion/FGElectric.h"
 #include "models/propulsion/FGTurboProp.h"
 #include "models/propulsion/FGTank.h"
-#include "input_output/FGModelLoader.h"
 #include "models/propulsion/FGBrushLessDCMotor.h"
 #include "models/FGFCS.h"
 
@@ -318,7 +319,9 @@ void FGPropulsion::InitRunning(int n)
   if (n >= 0) { // A specific engine is supposed to be initialized
 
     if (n >= (int)GetNumEngines() ) {
-      throw(string("Tried to initialize a non-existent engine!"));
+      LogException err(FDMExec->GetLogger());
+      err << "Tried to initialize a non-existent engine!";
+      throw err;
     }
 
     SetEngineRunning(n);
@@ -339,7 +342,7 @@ void FGPropulsion::SetEngineRunning(int engineIndex)
 {
   in.ThrottleCmd[engineIndex] = in.ThrottlePos[engineIndex] = 1; // Set the throttle command and position
   in.MixtureCmd[engineIndex] = in.MixturePos[engineIndex] = 1;   // Set the mixture command and position
-  FDMExec->GetFCS()->SetMixturePos(engineIndex, 1);    // Also set FCS values     
+  FDMExec->GetFCS()->SetMixturePos(engineIndex, 1);    // Also set FCS values
   FDMExec->GetFCS()->SetMixtureCmd(engineIndex, 1);
   GetEngine(engineIndex)->InitRunning();
 }
@@ -371,7 +374,8 @@ bool FGPropulsion::Load(Element* el)
     if (tank->GetType() == FGTank::ttFUEL)
       FuelDensity = tank->GetDensity();
     else if (tank->GetType() != FGTank::ttOXIDIZER) {
-      cerr << "Unknown tank type specified." << endl;
+      FGXMLLogging log(FDMExec->GetLogger(), tank_element, LogLevel::ERROR);
+      log << "Unknown tank type specified.\n";
       return false;
     }
     numTanks++;
@@ -388,8 +392,16 @@ bool FGPropulsion::Load(Element* el)
     try {
       // Locate the thruster definition
       Element* thruster_element = engine_element->FindElement("thruster");
-      if (!thruster_element || !ModelLoader.Open(thruster_element))
-        throw("No thruster definition supplied with engine definition.");
+      if (!thruster_element) {
+        XMLLogException err(FDMExec->GetLogger(), engine_element);
+        err << "No thruster definition supplied with engine definition.";
+        throw err;
+      }
+      if (!ModelLoader.Open(thruster_element)) {
+        XMLLogException err(FDMExec->GetLogger(), thruster_element);
+        err << "Cannot open the thruster element.";
+        throw err;
+      }
 
       if (engine_element->FindElement("piston_engine")) {
         Element *element = engine_element->FindElement("piston_engine");
@@ -411,11 +423,21 @@ bool FGPropulsion::Load(Element* el)
         Engines.push_back(make_shared<FGBrushLessDCMotor>(FDMExec, element, numEngines, in));
       }
       else {
-        cerr << engine_element->ReadFrom() << " Unknown engine type" << endl;
+        FGXMLLogging log(FDMExec->GetLogger(), engine_element, LogLevel::ERROR);
+        log << " Unknown engine type\n";
         return false;
       }
-    } catch (std::string& str) {
-      cerr << endl << fgred << str << reset << endl;
+    } catch (XMLLogException& err) {
+      err << "Cannot load " << Name << "\n";
+      return false;
+    } catch (LogException& e) {
+      XMLLogException err(e, engine_element);
+      err << "Cannot load " << Name << "\n";
+      return false;
+    } catch (const BaseException& e) {
+      FGXMLLogging err(FDMExec->GetLogger(), engine_element, LogLevel::FATAL);
+      err << "\n" << LogFormat::RED << e.what() << LogFormat::RESET
+          << "\nCannot load " << Name << "\n";
       return false;
     }
 
@@ -547,7 +569,7 @@ string FGPropulsion::GetPropulsionTankReport()
       << right << setw(12) << tank->GetContents() << setw(8) << tank->GetXYZ(eX)
       << setw(8) << tank->GetXYZ(eY) << setw(8) << tank->GetXYZ(eZ)
       << setw(12) << tank->GetIxx() << setw(12) << tank->GetIyy()
-      << setw(12) << tank->GetIzz() << endl;
+      << setw(12) << tank->GetIzz() << "\n";
   }
   return outstream.str();
 }
@@ -798,8 +820,6 @@ void FGPropulsion::SetFuelFreeze(bool f)
 
 void FGPropulsion::bind(void)
 {
-  typedef int (FGPropulsion::*iPMF)(void) const;
-  typedef bool (FGPropulsion::*bPMF)(void) const;
   bool HavePistonEngine = false;
   bool HaveTurboEngine = false;
 
@@ -809,7 +829,8 @@ void FGPropulsion::bind(void)
     if (!HaveTurboEngine && engine->GetType() == FGEngine::etTurboprop) HaveTurboEngine = true;
   }
 
-  PropertyManager->Tie("propulsion/set-running", this, (iPMF)nullptr, &FGPropulsion::InitRunning);
+  PropertyManager->Tie<FGPropulsion, int>("propulsion/set-running", this, nullptr,
+                                          &FGPropulsion::InitRunning);
   if (HaveTurboEngine) {
     PropertyManager->Tie("propulsion/starter_cmd", this, &FGPropulsion::GetStarter, &FGPropulsion::SetStarter);
     PropertyManager->Tie("propulsion/cutoff_cmd", this,  &FGPropulsion::GetCutoff, &FGPropulsion::SetCutoff);
@@ -817,7 +838,8 @@ void FGPropulsion::bind(void)
 
   if (HavePistonEngine) {
     PropertyManager->Tie("propulsion/starter_cmd", this, &FGPropulsion::GetStarter, &FGPropulsion::SetStarter);
-    PropertyManager->Tie("propulsion/magneto_cmd", this, (iPMF)nullptr, &FGPropulsion::SetMagnetos);
+    PropertyManager->Tie<FGPropulsion, int>("propulsion/magneto_cmd", this,
+                                            nullptr, &FGPropulsion::SetMagnetos);
   }
 
   PropertyManager->Tie("propulsion/active_engine", this, &FGPropulsion::GetActiveEngine,
@@ -832,7 +854,8 @@ void FGPropulsion::bind(void)
   PropertyManager->Tie("propulsion/total-oxidizer-lbs", &TotalOxidizerQuantity);
   PropertyManager->Tie("propulsion/refuel", &refuel);
   PropertyManager->Tie("propulsion/fuel_dump", &dump);
-  PropertyManager->Tie("propulsion/fuel_freeze", this, (bPMF)nullptr, &FGPropulsion::SetFuelFreeze);
+  PropertyManager->Tie<FGPropulsion, bool>("propulsion/fuel_freeze", this,
+                                           nullptr, &FGPropulsion::SetFuelFreeze);
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -860,12 +883,14 @@ void FGPropulsion::Debug(int from)
 
   if (debug_lvl & 1) { // Standard console startup message output
     if (from == 2) { // Loader
-      cout << endl << "  Propulsion:" << endl;
+      FGLogging log(FDMExec->GetLogger(), LogLevel::DEBUG);
+      log << "\n  Propulsion:\n";
     }
   }
   if (debug_lvl & 2 ) { // Instantiation/Destruction notification
-    if (from == 0) cout << "Instantiated: FGPropulsion" << endl;
-    if (from == 1) cout << "Destroyed:    FGPropulsion" << endl;
+    FGLogging log(FDMExec->GetLogger(), LogLevel::DEBUG);
+    if (from == 0) log << "Instantiated: FGPropulsion\n";
+    if (from == 1) log << "Destroyed:    FGPropulsion\n";
   }
   if (debug_lvl & 4 ) { // Run() method entry print for FGModel-derived objects
   }

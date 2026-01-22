@@ -36,9 +36,11 @@ HISTORY
 INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
+#include "FGFDMExec.h"
 #include "FGExternalForce.h"
 #include "FGExternalReactions.h"
 #include "input_output/FGXMLElement.h"
+#include "input_output/FGLog.h"
 
 using namespace std;
 
@@ -136,13 +138,12 @@ bool FGExternalReactions::Run(bool Holding)
 
 void FGExternalReactions::bind(void)
 {
-  typedef double (FGExternalReactions::*PMF)(int) const;
-  PropertyManager->Tie("moments/l-external-lbsft", this, eL, (PMF)&FGExternalReactions::GetMoments);
-  PropertyManager->Tie("moments/m-external-lbsft", this, eM, (PMF)&FGExternalReactions::GetMoments);
-  PropertyManager->Tie("moments/n-external-lbsft", this, eN, (PMF)&FGExternalReactions::GetMoments);
-  PropertyManager->Tie("forces/fbx-external-lbs", this, eX, (PMF)&FGExternalReactions::GetForces);
-  PropertyManager->Tie("forces/fby-external-lbs", this, eY, (PMF)&FGExternalReactions::GetForces);
-  PropertyManager->Tie("forces/fbz-external-lbs", this, eZ, (PMF)&FGExternalReactions::GetForces);
+  PropertyManager->Tie("moments/l-external-lbsft", this, eL, &FGExternalReactions::GetMoments);
+  PropertyManager->Tie("moments/m-external-lbsft", this, eM, &FGExternalReactions::GetMoments);
+  PropertyManager->Tie("moments/n-external-lbsft", this, eN, &FGExternalReactions::GetMoments);
+  PropertyManager->Tie("forces/fbx-external-lbs", this, eX, &FGExternalReactions::GetForces);
+  PropertyManager->Tie("forces/fby-external-lbs", this, eY, &FGExternalReactions::GetForces);
+  PropertyManager->Tie("forces/fbz-external-lbs", this, eZ, &FGExternalReactions::GetForces);
 }
 
 
@@ -173,12 +174,14 @@ void FGExternalReactions::Debug(int from)
     if (from == 0) { // Constructor - loading and initialization
     }
     if (from == 2) { // Loading
-      cout << endl << "  External Reactions: " << endl;
+      FGLogging log(FDMExec->GetLogger(), LogLevel::DEBUG);
+      log << "\n  External Reactions: \n";
     }
   }
   if (debug_lvl & 2 ) { // Instantiation/Destruction notification
-    if (from == 0) cout << "Instantiated: FGExternalReactions" << endl;
-    if (from == 1) cout << "Destroyed:    FGExternalReactions" << endl;
+    FGLogging log(FDMExec->GetLogger(), LogLevel::DEBUG);
+    if (from == 0) log << "Instantiated: FGExternalReactions\n";
+    if (from == 1) log << "Destroyed:    FGExternalReactions\n";
   }
   if (debug_lvl & 4 ) { // Run() method entry print for FGModel-derived objects
   }
