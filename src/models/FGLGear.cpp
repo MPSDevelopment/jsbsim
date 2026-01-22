@@ -266,6 +266,10 @@ void FGLGear::ResetToIC(void)
   compressSpeed   = 0.0;
   maxCompLen      = 0.0;
 
+  // Reset force clamping state
+  forceClamped = false;
+  unclampedStrutForce = 0.0;
+
   WheelSlip = 0.0;
 
   // Initialize Lagrange multipliers
@@ -646,10 +650,28 @@ void FGLGear::ComputeVerticalStrutForce()
     }
 
     StrutForce = min(springForce + dampForce, (double)0.0);
-    if (StrutForce > maximumForce) {
-      StrutForce = maximumForce;
+
+    // Fix: maximumForce check was using wrong sign comparison (StrutForce is negative)
+    if (-StrutForce > maximumForce) {
+      StrutForce = -maximumForce;
       compressLength = -StrutForce / kSpring;
     }
+  }
+
+  // Store unclamped force for diagnostics before any clamping
+  unclampedStrutForce = StrutForce;
+  forceClamped = false;
+
+  // Force clamping to prevent NaN explosions from extreme compression (e.g., underground spawn)
+  if (-StrutForce > forceClampLimit) {
+    forceClamped = true;
+    cerr << "GEAR FORCE CLAMPED: " << name
+         << " at T=" << fdmex->GetSimTime() << "s"
+         << " | Unclamped=" << -unclampedStrutForce << " lbs"
+         << " | Clamped to=" << forceClampLimit << " lbs"
+         << " | CompressLen=" << compressLength << " ft"
+         << endl;
+    StrutForce = -forceClampLimit;
   }
 
   // The reaction force of the wheel is always normal to the ground
@@ -860,6 +882,16 @@ void FGLGear::bind(FGPropertyManager* PropertyManager)
   PropertyManager->Tie( property_name.c_str(), &rollingFFactor);
   property_name = base_property_name + "/static-friction-factor";
   PropertyManager->Tie( property_name.c_str(), &staticFFactor);
+
+  // Force clamping diagnostic properties (for debugging underground spawn issues)
+  property_name = base_property_name + "/force-clamp-limit-lbs";
+  PropertyManager->Tie( property_name.c_str(), &forceClampLimit);
+  property_name = base_property_name + "/force-clamped";
+  PropertyManager->Tie( property_name.c_str(), &forceClamped);
+  property_name = base_property_name + "/unclamped-strut-force-lbs";
+  PropertyManager->Tie( property_name.c_str(), &unclampedStrutForce);
+  property_name = base_property_name + "/strut-force-lbs";
+  PropertyManager->Tie( property_name.c_str(), &StrutForce);
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

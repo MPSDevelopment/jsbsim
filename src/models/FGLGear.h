@@ -354,6 +354,10 @@ private:
   double rollingFFactor = 1.0;
   double maximumForce = DBL_MAX;
   double bumpiness = 0.0;
+  // Force clamping to prevent NaN explosions from underground spawns
+  double forceClampLimit = 50000.0;  // Default 50,000 lbs max strut force
+  double unclampedStrutForce = 0.0;  // Original force before clamping (for diagnostics)
+  bool forceClamped = false;         // True if force was clamped this frame
   bool isSolid = true;
   bool WOW; // Weight On Wheel
   bool lastWOW;
