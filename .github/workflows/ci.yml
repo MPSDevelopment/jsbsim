@@ -140,13 +140,10 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.2.3-${{ github.run_number }}
-          name: JSBSim v1.2.3 Build ${{ github.run_number }}
+          tag_name: v1.2.3
+          name: JSBSim v1.2.3
           body: |
-            JSBSim flight dynamics model binaries.
-
-            **Build**: ${{ github.run_number }}
-            **Commit**: ${{ github.sha }}
+            JSBSim v1.2.3 flight dynamics model binaries.
 
             **Platforms**:
             - Linux (x64)
