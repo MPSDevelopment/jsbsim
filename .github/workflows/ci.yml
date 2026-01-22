@@ -1,0 +1,160 @@
+name: Build JSBSim
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact: JSBSim-linux
+            binary_name: JSBSim
+            cmake_generator: "Ninja"
+          - os: macos-14
+            artifact: JSBSim-macos
+            binary_name: JSBSim-macos-arm64
+            cmake_generator: "Unix Makefiles"
+          - os: windows-latest
+            artifact: JSBSim-windows
+            binary_name: JSBSim.exe
+            cmake_generator: "Ninja"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libssl-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja openssl@3
+
+      - name: Install MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-openssl
+
+      - name: Configure CMake (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          CMAKE_EXTRA_FLAGS=""
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            CMAKE_EXTRA_FLAGS="-DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3)"
+          fi
+          cmake -B build -G "${{ matrix.cmake_generator }}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_PYTHON_MODULE=OFF \
+            -DBUILD_DOCS=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            $CMAKE_EXTRA_FLAGS
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake -B build -G "${{ matrix.cmake_generator }}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_PYTHON_MODULE=OFF \
+            -DBUILD_DOCS=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DOPENSSL_USE_STATIC_LIBS=TRUE \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cmake --build build --config Release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake --build build --config Release -j$(nproc)
+
+      - name: Copy binary (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cp build/src/JSBSim "${{ github.workspace }}/${{ matrix.binary_name }}"
+          chmod +x "${{ github.workspace }}/${{ matrix.binary_name }}"
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            xattr -cr "${{ github.workspace }}/${{ matrix.binary_name }}"
+          fi
+
+      - name: Copy binary (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cp build/src/JSBSim.exe "${{ github.workspace }}/${{ matrix.binary_name }}"
+
+      - name: Test binary (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          "${{ github.workspace }}/${{ matrix.binary_name }}" --help || true
+
+      - name: Test binary (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          "${{ github.workspace }}/${{ matrix.binary_name }}" --help || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ github.workspace }}/${{ matrix.binary_name }}
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.0-${{ github.run_number }}
+          name: JSBSim Build ${{ github.run_number }}
+          body: |
+            JSBSim flight dynamics model binaries.
+
+            **Build**: ${{ github.run_number }}
+            **Commit**: ${{ github.sha }}
+
+            **Platforms**:
+            - Linux (x64)
+            - macOS ARM64 (Apple Silicon)
+            - Windows (x64)
+          files: |
+            ./artifacts/JSBSim-linux/JSBSim
+            ./artifacts/JSBSim-macos/JSBSim-macos-arm64
+            ./artifacts/JSBSim-windows/JSBSim.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

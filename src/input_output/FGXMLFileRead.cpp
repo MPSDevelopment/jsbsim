@@ -29,7 +29,9 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include "FGXMLFileRead.h"
+#include "FGDecrypt.h"
 #include "simgear/io/iostreams/sgstream.hxx"
+#include <sstream>
 
 namespace JSBSim {
 
@@ -40,20 +42,40 @@ CLASS IMPLEMENTATION
 Element* FGXMLFileRead::LoadXMLDocument(const SGPath& XML_filename,
                                         FGXMLParse& fparse, bool verbose)
 {
-  sg_ifstream infile;
   SGPath filename(XML_filename);
-  if (!filename.isNull()) {
-    if (filename.extension().empty())
-      filename.concat(".xml");
-    infile.open(filename);
-    if ( !infile.is_open()) {
-      if (verbose) std::cerr << "Could not open file: " << filename << std::endl;
-      return 0L;
-    }
-  } else {
+  if (filename.isNull()) {
     std::cerr << "No filename given." << std::endl;
     return 0L;
   }
+
+  if (filename.extension().empty())
+    filename.concat(".xml");
+
+  // Check for encrypted version first
+  SGPath encPath = FGDecrypt::GetEncryptedPath(filename);
+  if (!encPath.isNull()) {
+    std::vector<unsigned char> encrypted_data = FGDecrypt::ReadEncryptedFile(encPath);
+    if (!encrypted_data.empty()) {
+      std::string decrypted = FGDecrypt::Decrypt(encrypted_data);
+      if (!decrypted.empty()) {
+        std::istringstream stream(decrypted);
+        readXML(stream, fparse, encPath.utf8Str());
+        return fparse.GetDocument();
+      } else {
+        if (verbose) std::cerr << "Failed to decrypt file: " << encPath << std::endl;
+        return 0L;
+      }
+    }
+  }
+
+  // Fall back to plaintext file
+  sg_ifstream infile;
+  infile.open(filename);
+  if (!infile.is_open()) {
+    if (verbose) std::cerr << "Could not open file: " << filename << std::endl;
+    return 0L;
+  }
+
   readXML(infile, fparse, filename.utf8Str());
   Element* document = fparse.GetDocument();
   infile.close();

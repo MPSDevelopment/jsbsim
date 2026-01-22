@@ -1,6 +1,13 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 ################################################################################
+# Find OpenSSL for AES decryption                                              #
+################################################################################
+
+find_package(OpenSSL REQUIRED)
+include_directories(${OPENSSL_INCLUDE_DIR})
+
+################################################################################
 # Define some commons compile flags.                                           #
 ################################################################################
 
@@ -81,6 +88,9 @@ if(EXPAT_FOUND)
 else()
   list(APPEND MSVC_COMPILE_DEFINITIONS XML_STATIC)
 endif(EXPAT_FOUND)
+
+# Link OpenSSL for AES decryption
+target_link_libraries(libJSBSim OpenSSL::Crypto)
 
 # Manage compile definitions
 set(JSBSIM_COMPILE_DEFINITIONS ${COMPILE_DEFINITIONS} PARENT_SCOPE)
@@ -166,6 +176,11 @@ endif()
 
 add_executable(JSBSim JSBSim.cpp)
 target_link_libraries(JSBSim libJSBSim)
+
+# Static link MinGW runtime libraries for standalone Windows executable
+if(MINGW AND NOT BUILD_SHARED_LIBS)
+  target_link_options(JSBSim PRIVATE -static -static-libgcc -static-libstdc++)
+endif()
 # Add JSBSim to the coverage analysis to avoid linking errors
 add_coverage(JSBSim)
 
