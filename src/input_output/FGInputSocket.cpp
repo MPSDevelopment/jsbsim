@@ -42,6 +42,7 @@ INCLUDES
 #include "FGFDMExec.h"
 #include "models/FGAircraft.h"
 #include "models/FGGroundReactions.h"
+#include "models/FGExternalReactions.h"
 #include "FGXMLElement.h"
 #include "string_utilities.h"
 #include "FGLog.h"
@@ -349,6 +350,12 @@ void FGInputSocket::Read(bool Holding)
 
           // Reset ground reactions to clear stale WOW, compressLength, compressSpeed values
           FDMExec->GetGroundReactions()->InitModel();
+
+          // Reset external reactions to clear stale catapult/hook/parachute force totals.
+          // Without this, the two dt=0 Run() calls below compute forces from a stale
+          // magnitude against the freshly reset airframe, producing extreme forces
+          // (100k+ lbs on nose gear when combined with ground reaction spring compression).
+          FDMExec->GetExternalReactions()->InitModel();
 
           // Run twice with dt=0 to update all model states and resolve inter-model dependencies
           FDMExec->Run();
