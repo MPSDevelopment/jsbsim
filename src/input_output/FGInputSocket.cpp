@@ -43,6 +43,8 @@ INCLUDES
 #include "models/FGAircraft.h"
 #include "models/FGGroundReactions.h"
 #include "models/FGExternalReactions.h"
+#include "models/FGAerodynamics.h"
+#include "models/FGAccelerations.h"
 #include "FGXMLElement.h"
 #include "string_utilities.h"
 #include "FGLog.h"
@@ -336,6 +338,11 @@ void FGInputSocket::Read(bool Holding)
           FDMExec->GetIC()->SetVBodyFpsIC(0.0);
           FDMExec->GetIC()->SetWBodyFpsIC(0.0);
 
+          // Zero angular rates to prevent stale tumble/spin from previous flight
+          FDMExec->GetIC()->SetPRadpsIC(0.0);
+          FDMExec->GetIC()->SetQRadpsIC(0.0);
+          FDMExec->GetIC()->SetRRadpsIC(0.0);
+
           // Debug: Read IC values after update
           double lat_after = FDMExec->GetIC()->GetLatitudeDegIC();
           double lon_after = FDMExec->GetIC()->GetLongitudeDegIC();
@@ -356,6 +363,16 @@ void FGInputSocket::Read(bool Holding)
           // magnitude against the freshly reset airframe, producing extreme forces
           // (100k+ lbs on nose gear when combined with ground reaction spring compression).
           FDMExec->GetExternalReactions()->InitModel();
+
+          // Reset aerodynamics to clear stale forces and stall hysteresis from previous flight
+          FDMExec->GetAerodynamics()->InitModel();
+
+          // Reset aircraft force/moment summation vectors
+          FDMExec->GetAircraft()->InitModel();
+
+          // Reset accelerations to clear stale derivative vectors (vUVWdot, vPQRidot)
+          // that feed into the Propagate integrator on the first real-dt frame
+          FDMExec->GetAccelerations()->InitModel();
 
           // Run twice with dt=0 to update all model states and resolve inter-model dependencies
           FDMExec->Run();
