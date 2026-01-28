@@ -393,11 +393,13 @@ void FGInputSocket::Read(bool Holding)
 
           socket->Reply("Initial conditions reset (complete)\r\n");
         } else if (mode == "state") {
-          // State-only update - applies orientation and velocity
+          // Orientation-only update - rotates the aircraft without touching velocity
+          // or the integration clock. Safe to call in --realtime mode.
+          // Must convert Local-to-Body quaternion to ECI-to-Body using Ti2l
 
           auto propagate = FDMExec->GetPropagate();
 
-          // Get Local-to-Body quaternion from IC
+          // Get Local-to-Body quaternion from IC (includes updated psi/theta/phi)
           FGQuaternion qLocal = FDMExec->GetIC()->GetOrientation();
 
           // Get ECI-to-Local transformation matrix
@@ -406,9 +408,14 @@ void FGInputSocket::Read(bool Holding)
           // Convert to ECI-to-Body: qECI = Ti2l * qLocal
           FGQuaternion qECI = Ti2l.GetQuaternion() * qLocal;
 
-          // Apply orientation and velocity
+          // Apply orientation only - do NOT touch velocity.
+          // SetInertialVelocity would slam IC velocities (possibly non-zero from
+          // reset.xml trim) into the aircraft, and even zero IC velocity would
+          // interrupt ground-settling dynamics causing bounce/throw cycles.
           propagate->SetInertialOrientation(qECI);
-          propagate->SetInertialVelocity(FDMExec->GetIC()->GetUVWFpsIC());
+
+          cerr << "reset_ic state: applied orientation psi="
+               << FDMExec->GetIC()->GetPsiDegIC() << " deg" << endl;
 
           socket->Reply("Initial conditions applied (state)\r\n");
         } else {
