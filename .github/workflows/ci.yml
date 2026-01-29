@@ -4,9 +4,10 @@ on:
   push:
     branches:
       - main
-      - feature/custom-changes-v1.2.3
+      - "v1.1"
     tags:
-      - 'v1.2.3*'
+      - 'v1.1*'
+      - 'v1.2*'
   workflow_dispatch:
 
 jobs:
@@ -131,9 +132,18 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/custom-changes-v1.2.3' || startsWith(github.ref, 'refs/tags/v1.2.3')
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v1.1' || startsWith(github.ref, 'refs/tags/v1.1') || startsWith(github.ref, 'refs/tags/v1.2')
 
     steps:
+      - name: Set version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/v1.1" ]] || [[ "${{ github.ref }}" == refs/tags/v1.1* ]]; then
+            echo "version=1.1" >> $GITHUB_OUTPUT
+          else
+            echo "version=1.2" >> $GITHUB_OUTPUT
+          fi
+
       - name: Download all artifacts
         uses: actions/download-artifact@v7
         with:
@@ -142,10 +152,10 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.3-${{ github.run_number }}
-          name: JSBSim v1.2.3-${{ github.run_number }}
+          tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
+          name: JSBSim v${{ steps.version.outputs.version }}-${{ github.run_number }}
           body: |
-            JSBSim v1.2.3 flight dynamics model binaries.
+            JSBSim v${{ steps.version.outputs.version }} flight dynamics model binaries.
 
             **Platforms**:
             - Linux (x64)
