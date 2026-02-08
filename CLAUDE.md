@@ -109,6 +109,10 @@ All physics models inherit from **FGModel** (`src/models/FGModel.h`):
 - `systems/` - Flight control system XML definitions
 - `scripts/` - Simulation script XML files
 
+## Upstream Merge Checklist
+
+When merging a new upstream JSBSim version, update the base version in `.github/workflows/ci.yml` (the "Set version" step) to match the new release (e.g. `1.2.4`, `1.1.14`). Release tags are formatted as `v{base_version}-{run_number}`.
+
 ## Code Standards
 
 - C++17 standard
